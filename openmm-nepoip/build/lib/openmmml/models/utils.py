@@ -1,0 +1,254 @@
+import torch
+from typing import Tuple, List, Optional
+
+@torch.jit.script
+def simple_nl(positions: torch.Tensor, cell: torch.Tensor, pbc: bool, cutoff: float, sorti: bool=False) -> Tuple[torch.Tensor, torch.Tensor]:
+    """simple torchscriptable neighborlist. 
+    
+    It aims are to be correct, clear, and torchscript compatible.
+    It is O(n^2) but with pytorch vectorisation the prefactor is small.
+    It outputs neighbors and shifts in the same format as ASE 
+    https://wiki.fysik.dtu.dk/ase/ase/neighborlist.html#ase.neighborlist.primitive_neighbor_list
+
+    neighbors, shifts = simple_nl(..)
+    is equivalent to
+    
+    [i, j], S = primitive_neighbor_list( quantities="ijS", ...)
+
+    Limitations:
+        - either no PBCs or PBCs in all x,y,z
+        - cutoff must be less than half the smallest box length
+        - cell must be rectangular or triclinic in OpenMM format:
+        http://docs.openmm.org/development/userguide/theory/05_other_features.html#periodic-boundary-conditions
+
+    Parameters
+    ----------
+    positions: torch.Tensor
+        Coordinates, shape [N,3]
+    cell: torch.Tensor
+        Triclinic unit cell, shape [3,3], must be in OpenMM format: http://docs.openmm.org/development/userguide/theory/05_other_features.html#periodic-boundary-conditions 
+    pbc: bool
+        should PBCs be applied
+    cutoff: float
+        Distances beyond cutoff are not included in the nieghborlist
+    soti: bool=False
+        if true the returned nieghborlist will be sorted in the i index. The default is False (no sorting).
+    
+    Returns
+    -------
+    neighbors: torch.Tensor
+        neighbor list, shape [2, number of neighbors]
+    shifts: torch.Tensor
+        shift vector, shape [number of neighbors, 3], From ASE docs: 
+        shift vector (number of cell boundaries crossed by the bond between atom i and j). 
+        With the shift vector S, the distances D between atoms can be computed from:
+        D = positions[j]-positions[i]+S.dot(cell)
+    """
+
+    num_atoms = positions.shape[0]
+    device = positions.device
+
+    # get i,j indices where j>i
+    uij = torch.triu_indices(num_atoms, num_atoms, 1, device=device)
+    triu_deltas = positions[uij[0]] - positions[uij[1]]
+
+    wrapped_triu_deltas=triu_deltas.clone()
+
+    if pbc:
+        # using method from: https://github.com/openmm/NNPOps/blob/master/src/pytorch/neighbors/getNeighborPairsCPU.cpp
+        wrapped_triu_deltas -= torch.outer(torch.round(wrapped_triu_deltas[:,2]/cell[2,2]), cell[2])
+        wrapped_triu_deltas -= torch.outer(torch.round(wrapped_triu_deltas[:,1]/cell[1,1]), cell[1])
+        wrapped_triu_deltas -= torch.outer(torch.round(wrapped_triu_deltas[:,0]/cell[0,0]), cell[0])
+
+        # From ASE docs:
+        # wrapped_delta = pos[i] - pos[j] - shift.cell
+        # => shift = ((pos[i]-pos[j]) - wrapped_delta).cell^-1
+        shifts = torch.mm(triu_deltas - wrapped_triu_deltas, torch.linalg.inv(cell))
+
+    else:
+        shifts = torch.zeros(triu_deltas.shape, device=device)
+    
+    triu_distances = torch.linalg.norm(wrapped_triu_deltas, dim=1)
+
+    # filter
+    mask = triu_distances > cutoff
+    uij = uij[:,~mask]    
+    shifts = shifts[~mask, :]
+
+    # get the ij pairs where j<i
+    lij = torch.stack((uij[1], uij[0]))
+    neighbors = torch.hstack((uij, lij))
+    shifts = torch.vstack((shifts, -shifts))
+
+    if sorti:
+        idx = torch.argsort(neighbors[0])
+        neighbors = neighbors[:,idx]
+        shifts = shifts[idx,:]
+
+    return neighbors, shifts
+
+def convert_optional_tensor(optional_tensor: Optional[torch.Tensor]) -> torch.Tensor:
+    if optional_tensor is None:
+        # Handle the None case, e.g., return a zero tensor with a specific shape
+        return torch.tensor([])
+    else:
+        return optional_tensor
+
+@torch.jit.script
+def compute_batch(kx: torch.Tensor, ky: torch.Tensor, kz: torch.Tensor, cell: torch.Tensor, r: torch.Tensor, charges: torch.Tensor, alpha: float, volume: float) -> torch.Tensor:
+    k_vecs = torch.stack((kx, ky, kz), dim=1)
+    k_vecs = k_vecs / torch.diagonal(cell)
+    k2 = torch.sum(k_vecs ** 2, dim=1)
+    img = 2 * torch.pi * torch.matmul(r, k_vecs.t())
+    real = - (torch.pi / alpha) ** 2 * k2
+
+    terms = torch.sum(charges[:, None] * torch.exp(real) * torch.cos(img), dim=0) / k2 / volume / torch.pi
+    return terms
+
+@torch.jit.script
+def parallel_compute(kmax: torch.Tensor, cell: torch.Tensor, r: torch.Tensor, charges: torch.Tensor, alpha: float, volume: float, batch_size: int) -> torch.Tensor:
+    # Generate all combinations of kx, ky, kz
+    k_range_x = torch.arange(-kmax[0], kmax[0] + 1)
+    k_range_y = torch.arange(-kmax[1], kmax[1] + 1)
+    k_range_z = torch.arange(-kmax[2], kmax[2] + 1)
+    kx, ky, kz = torch.meshgrid(k_range_x, k_range_y, k_range_z, indexing='ij')
+    kx, ky, kz = kx.flatten(), ky.flatten(), kz.flatten()
+    
+    # Filter out the zero vector
+    non_zero_mask = (kx != 0) | (ky != 0) | (kz != 0)
+    kx, ky, kz = kx[non_zero_mask], ky[non_zero_mask], kz[non_zero_mask]
+
+    rec_sum = torch.tensor(0.0)
+
+    # Process in batches
+    num_elements = kx.size(0)
+    # print(num_elements)
+    for i in range(0, num_elements, batch_size):
+        end = min(i + batch_size, num_elements)
+        kx_batch = kx[i:end]
+        ky_batch = ky[i:end]
+        kz_batch = kz[i:end]
+        terms = compute_batch(kx_batch, ky_batch, kz_batch, cell, r, charges, alpha, volume)
+        rec_sum += torch.sum(terms)
+    
+    return rec_sum
+
+@torch.jit.script
+def pbc_esp(positions: torch.Tensor, index: int, charges: torch.Tensor, ml_indices: torch.Tensor, cell: torch.Tensor, pbc: bool, cutoff: float, alpha: float, kmax: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+
+    target_ind = ml_indices[index]
+    # print(target_ind)
+
+    self_mask = torch.zeros(charges.shape, dtype=torch.bool)
+    self_mask[target_ind] = True
+
+    ml_mask = torch.zeros(charges.shape, dtype=torch.bool)
+    ml_mask[ml_indices] = True
+
+    ml_self_mask = torch.zeros(ml_indices.shape, dtype=torch.bool)
+    ml_self_mask[index] = True
+
+    new_indices = ml_indices[~ml_self_mask]
+    new_indices[new_indices>target_ind] -= 1
+    
+
+    point = positions[target_ind]
+    r = positions[~self_mask] - point
+
+    if pbc:
+        # Periodic Boundary Condition. Requires cutoff < box_length/2
+        for j in range(3):
+            box_length = cell[j][j]
+            r[:, j] -= round(r[:, j] / box_length) * box_length 
+
+    # # Calculate the direct space sum and its derivative   
+    
+    charges_cut = charges.clone()
+    charges_cut = charges_cut[~self_mask]
+    
+    distance = torch.sum(r ** 2, 1) ** 0.5
+    neighbor_mask = (distance < cutoff)
+
+    # charges_cut[~neighbor_mask] = 0 # Set zero charges for atoms out of cutoff
+
+    erfc_term = torch.special.erfc(alpha * distance[neighbor_mask]) 
+    potential = torch.sum(charges_cut[neighbor_mask] / distance[neighbor_mask] * erfc_term)
+
+    # Calculate the reciprocal space sum and its derivative  
+    volume = cell[0][0] * cell[1][1] * cell[2][2] 
+
+    rec_sum = parallel_compute(kmax, cell, positions - point, charges, alpha, volume, 256)
+
+    potential += rec_sum
+
+    # self energy
+    self_interaction = alpha / torch.sqrt(torch.pi) * charges[self_mask]
+    potential -= 2 * self_interaction.squeeze()
+
+    # Exclude the intra-molecular coulomb interaction
+    intra_potential = torch.sum(charges_cut[new_indices]/distance[new_indices]) 
+    potential -= intra_potential 
+
+    # Gradients
+    grad_auto = torch.autograd.grad([potential], [positions], retain_graph=True)[0]
+    grad_auto = convert_optional_tensor(grad_auto)
+
+    grad_mm_site = grad_auto[~ml_mask]
+
+    elec_field = grad_auto[ml_mask]
+
+    return potential, grad_mm_site, elec_field
+
+@torch.jit.script
+def nopbc_esp(positions: torch.Tensor, index: int, charges: torch.Tensor, ml_indices: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+
+    target_ind = ml_indices[index]
+    # print(target_ind)
+
+    self_mask = torch.zeros(charges.shape, dtype=torch.bool)
+    self_mask[target_ind] = True
+
+    ml_mask = torch.zeros(charges.shape, dtype=torch.bool)
+    ml_mask[ml_indices] = True
+
+    ml_self_mask = torch.zeros(ml_indices.shape, dtype=torch.bool)
+    ml_self_mask[index] = True
+
+    new_indices = ml_indices[~ml_self_mask]
+    new_indices[new_indices>target_ind] -= 1
+    
+
+    point = positions[target_ind]
+    r = positions[~ml_mask] - point
+
+    # # Calculate the direct space sum and its derivative   
+    
+    charges_cut = charges.clone()
+    charges_cut = charges_cut[~ml_mask]
+    
+    distance = torch.sum(r ** 2, 1) ** 0.5
+
+    potential = torch.sum(charges_cut / distance)
+
+    # Gradients
+    grad_auto = torch.autograd.grad([potential], [positions], retain_graph=True)[0]
+    # grad_auto = torch.autograd.grad([intra_potential], [positions], retain_graph=True)[0]
+    grad_auto = convert_optional_tensor(grad_auto)
+
+    grad_mm_site = grad_auto[~ml_mask]
+
+    elec_field = grad_auto[ml_mask]
+
+    return potential, grad_mm_site, elec_field
+
+def get_kmax(box_vectors: torch.Tensor, alpha: float, ewald_tolerance: float) -> list:
+    kmax = [1, 1, 1]
+
+    for i in range(3):
+        error = kmax[i] * torch.sqrt(box_vectors[i,i]*alpha)/20 * torch.exp(-1*(torch.pi*kmax[i]/box_vectors[i,i]/alpha)**2)
+        
+        while error > ewald_tolerance:
+            kmax[i] += 1
+            error = kmax[i] * torch.sqrt(box_vectors[i,i]*alpha)/20 * torch.exp(-1*(torch.pi*kmax[i]/box_vectors[i,i]/alpha)**2)
+        
+    return kmax 
