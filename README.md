@@ -149,7 +149,7 @@ For more details on this command, please run `nequip-deploy --help`.
 
 ## References & citing
 
-Citation of NepoIP:
+Citation of NepoIP: [Coming soon]
 
 
 
@@ -161,13 +161,5 @@ Users are encouraged to also cite the NequIP model and the theory behind it:
 
 ## Authors
 
-NepoIP/MM is developed by Ge Song under the supervision of [Prof. Weitao Yang]([Weitao Yang | Scholars@Duke profile](https://scholars.duke.edu/person/weitao.yang))
+NepoIP/MM is developed by [Ge Song](https://calvinge.github.io/gesong.github.io/) under the supervision of [Prof. Weitao Yang](https://scholars.duke.edu/person/weitao.yang)
 
-## Contact, questions, and contributing
-
-If you have questions, please don't hesitate to reach out at batzner[at]g[dot]harvard[dot]edu. 
-
-If you find a bug or have a proposal for a feature, please post it in the [Issues](https://github.com/mir-group/nequip/issues).
-If you have a question, topic, or issue that isn't obviously one of those, try our [GitHub Discussions](https://github.com/mir-group/nequip/discussions).
-
-If you want to contribute to the code, please read [`CONTRIBUTING.md`](CONTRIBUTING.md).
