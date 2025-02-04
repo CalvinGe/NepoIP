@@ -2,35 +2,37 @@
 
 NepoIP/MM is an open-source code for performing accurate ML/MM MD simulation with electrostatic embedding. 
 
+NepoIP is adapted from the E(3)-equivariant neural network [NequIP](https://github.com/mir-group/nequip).
+
 [![Documentation Status](https://readthedocs.org/projects/nequip/badge/?version=latest)](https://nequip.readthedocs.io/en/latest/?badge=latest)
 
 ![nepoip](./toc.jpg)
 
 ## Installation
 
-### Create Environment
+### 1. Create Environment
 
 ```
 conda create -n nepoip-test
 ```
 
-### Installation of PyTorch
+### 2. Installation of PyTorch
 
-Use the pytorch version that is compatible to your CUDA version, according to [Previous PyTorch Versions | PyTorch](https://pytorch.org/get-started/previous-versions/) . For CUDA 12.4 and PyTorch 2.4.1:
+Use the pytorch version that is compatible to your CUDA version, according to [Previous PyTorch Versions | PyTorch](https://pytorch.org/get-started/previous-versions/) . For example, installing with CUDA 12.4 and PyTorch 2.4.1:
 
 ```
 conda install pytorch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 pytorch-cuda=12.4 -c pytorch -c nvidia
 ```
 
-### Installation of OpenMM-Torch
+### 3. Installation of OpenMM-Torch
 
 ```
 conda install -c conda-forge openmm-torch
 ```
 
-### Installation of NepoIP
+### 4. Installation of NepoIP
 
-The NepoIP model is adapted from the architecture of NequIP, the users are encouraged to go through NequIP's installation instruction and tutorial ([mir-group/nequip: NequIP is a code for building E(3)-equivariant interatomic potentials](https://github.com/mir-group/nequip) )
+The NepoIP model is adapted from the architecture of NequIP, the users are encouraged to go through NequIP's installation instruction and tutorial ([mir-group/nequip: NequIP is a code for building E(3)-equivariant interatomic potentials](https://github.com/mir-group/nequip))
 
 To install NepoIP:
 
@@ -40,7 +42,7 @@ cd nepoip
 pip install . 
 ```
 
-### Installation Issues
+### 5. Installation Issues
 
 To check if your installation is working:
 
@@ -56,7 +58,7 @@ To check if your installation is working:
   $ nequip-train configs/ala_water_pol_dftb_grad.yaml
   ```
 
-> The usage of NepoIP model is specified in the `YAML` configuration file.
+> In the `ala_water_pol_dftb_grad.yaml` configuration file, the specification of `EnergyModel_pol` and `WholeForceOutput` set the use of the nepoip model rather than nequip.
 
 If you suspect something is wrong, encounter errors, or just want to confirm that everything is in working order, you can also run the unit tests:
 
@@ -161,5 +163,5 @@ Users are encouraged to also cite the NequIP model and the theory behind it:
 
 ## Authors
 
-NepoIP/MM is developed by [Ge Song](https://calvinge.github.io/gesong.github.io/) under the supervision of [Prof. Weitao Yang](https://scholars.duke.edu/person/weitao.yang)
+NepoIP/MM is developed by Ge Song under the supervision of [Prof. Weitao Yang](https://scholars.duke.edu/person/weitao.yang)
 
