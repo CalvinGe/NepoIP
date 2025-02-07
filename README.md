@@ -149,17 +149,13 @@ nequip-deploy build --train-dir path/to/training/session/ where/to/put/deployed_
 For more details on this command, please run `nequip-deploy --help`.
 
 
-## References & citing
+## References
 
-Citation of NepoIP: [Coming soon]
+The paper of NepoIP/MM: 
+https://arxiv.org/abs/2502.02801
 
-
-
-Users are encouraged to also cite the NequIP model and the theory behind it:
-
- 1. https://www.nature.com/articles/s41467-022-29939-5
- 2. https://e3nn.org
- 3. https://doi.org/10.5281/zenodo.3724963
+Users are encouraged to also cite the NequIP model when using NepoIP/MM:
+https://www.nature.com/articles/s41467-022-29939-5
 
 ## Authors
 
