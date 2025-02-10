@@ -37,7 +37,7 @@ The NepoIP model is adapted from the architecture of NequIP, the users are encou
 To install NepoIP:
 
 ```
-git clone https://github.com/CalvinGe/NepoIP.git
+git clone https://github.com/Yang-Laboratory/NepoIP.git
 cd nepoip
 pip install . 
 ```
@@ -80,7 +80,7 @@ If a GPU is present, the unit tests will use it.
 To perform NepoIP/MM MD simulation, one needs to install our modified version of the openmm-ml package ([openmm/openmm-ml: High level API for using machine learning models in OpenMM simulations](https://github.com/openmm/openmm-ml)):
 
 ```
-git clone https://github.com/CalvinGe/NepoIP.git
+git clone https://github.com/Yang-Laboratory/NepoIP.git
 cd openmm-nepoip
 pip install . 
 ```
