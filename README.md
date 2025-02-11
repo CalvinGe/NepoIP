@@ -4,8 +4,6 @@ NepoIP/MM is an open-source code for performing accurate ML/MM MD simulation wit
 
 NepoIP is adapted from the E(3)-equivariant neural network [NequIP](https://github.com/mir-group/nequip).
 
-[![Documentation Status](https://readthedocs.org/projects/nequip/badge/?version=latest)](https://nequip.readthedocs.io/en/latest/?badge=latest)
-
 ![nepoip](./toc.jpg)
 
 ## Installation
