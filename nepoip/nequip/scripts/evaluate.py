@@ -1,5 +1,5 @@
 from typing import Optional
-import sys
+
 import argparse
 import logging
 import textwrap
@@ -8,6 +8,11 @@ import contextlib
 from tqdm.auto import tqdm
 
 import ase.io
+
+# Insert the current working directory at the start of sys.path
+import sys
+import os
+sys.path.insert(0, os.getcwd())
 
 import torch
 
@@ -383,6 +388,8 @@ def main(args=None, running_as_script: bool = True):
             input = AtomicData.to_AtomicDataDict(batch)
             out = model(AtomicData.to_AtomicDataDict(batch))
 
+            out[AtomicDataDict.FORCE_KEY] = out[AtomicDataDict.SELF_FORCE_KEY] + out[AtomicDataDict.COUPL_FORCE_KEY] 
+            
             with torch.no_grad():
                 # Write output
                 if output_type == "xyz":

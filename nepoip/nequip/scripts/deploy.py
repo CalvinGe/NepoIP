@@ -15,6 +15,11 @@ import itertools
 # Since numpy gets imported later anyway for dataset stuff, this shouldn't affect performance.
 import numpy as np  # noqa: F401
 
+# Insert the current working directory at the start of sys.path
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+
 import torch
 
 import ase.data

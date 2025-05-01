@@ -54,9 +54,17 @@ class AtomwiseLinear(GraphModuleMixin, torch.nn.Module):
 
     def forward(self, data: AtomicDataDict.Type) -> AtomicDataDict.Type:
         data[self.out_field] = self.linear(data[self.field])
+        if self.out_field == AtomicDataDict.PER_ATOM_CHARGE_KEY:
+            if AtomicDataDict.BATCH_KEY in data:
+                num_atom = torch.sum((data[AtomicDataDict.BATCH_KEY] == 0)).item()
+            else: 
+                num_atom = data[self.out_field].shape[0]
+            data[self.out_field] = data[self.out_field].view(-1, num_atom)
+            data[self.out_field] = data[self.out_field] - torch.mean(data[self.out_field], dim=1, keepdim=True)
+            data[self.out_field] = data[self.out_field].view(-1, 1)
         return data
 
-
+    
 class AtomwiseLinear_pol(GraphModuleMixin, torch.nn.Module):
     def __init__(
         self,
@@ -136,9 +144,18 @@ class AtomwiseReduce(GraphModuleMixin, torch.nn.Module):
 
     def forward(self, data: AtomicDataDict.Type) -> AtomicDataDict.Type:
         data = AtomicDataDict.with_batch(data)
-        data[self.out_field] = scatter(
-            data[self.field], data[AtomicDataDict.BATCH_KEY], dim=0, reduce=self.reduce
+        if self.field == AtomicDataDict.PER_ATOM_CHARGE_KEY:
+            # print(data[self.field].shape)
+            # print(data[AtomicDataDict.ELEC_POTENTIAL_KEY].shape)
+            data[self.out_field] = scatter(
+            data[self.field] * data[AtomicDataDict.ELEC_POTENTIAL_KEY], data[AtomicDataDict.BATCH_KEY], dim=0, reduce=self.reduce
         )
+            data[self.out_field] = torch.sum(data[self.out_field], dim=1, keepdim=True)
+        
+        else:
+            data[self.out_field] = scatter(
+                data[self.field], data[AtomicDataDict.BATCH_KEY], dim=0, reduce=self.reduce
+            )
         if self.constant != 1.0:
             data[self.out_field] = data[self.out_field] * self.constant
         
@@ -238,6 +255,7 @@ class PerSpeciesScaleShift(GraphModuleMixin, torch.nn.Module):
         if self.has_shifts:
             in_field = self.shifts[species_idx].view(-1, 1) + in_field
         data[self.out_field] = in_field
+
         return data
 
     def update_for_rescale(self, rescale_module):

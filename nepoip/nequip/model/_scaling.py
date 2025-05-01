@@ -28,7 +28,8 @@ def RescaleEnergyEtc(
         else f"dataset_{AtomicDataDict.TOTAL_ENERGY_KEY}_std",
         default_shift=None,
         default_scale_keys=AtomicDataDict.ALL_ENERGY_KEYS,
-        default_shift_keys=[AtomicDataDict.TOTAL_ENERGY_KEY],
+        default_shift_keys=[AtomicDataDict.SELF_ENERGY_KEY],
+        default_shift_keys_coupl=[AtomicDataDict.COUPL_ENERGY_KEY],
         default_related_scale_keys=[AtomicDataDict.PER_ATOM_ENERGY_KEY],
         default_related_shift_keys=[],
     )
@@ -43,6 +44,7 @@ def GlobalRescale(
     default_shift: Union[str, float, list],
     default_scale_keys: list,
     default_shift_keys: list,
+    default_shift_keys_coupl: list,
     default_related_scale_keys: list,
     default_related_shift_keys: list,
     dataset: Optional[AtomicDataset] = None,
@@ -53,7 +55,9 @@ def GlobalRescale(
     """
 
     global_scale = config.get(f"{module_prefix}_scale", default_scale)
+    global_scale_coupl = config.get(f"{module_prefix}_scale_coupl", None)
     global_shift = config.get(f"{module_prefix}_shift", default_shift)
+    global_shift_coupl = config.get(f"{module_prefix}_shift_coupl", None)
 
     if global_shift is not None:
         logging.warning(
@@ -64,7 +68,7 @@ def GlobalRescale(
     # = Get statistics of training dataset =
     if initialize:
         str_names = []
-        for value in [global_scale, global_shift]:
+        for value in [global_scale, global_scale_coupl, global_shift, global_shift_coupl]:
             if isinstance(value, str):
                 str_names += [value]
             elif (
@@ -84,19 +88,30 @@ def GlobalRescale(
                 dataset=dataset,
                 stride=config.dataset_statistics_stride,
             )
-
         if isinstance(global_scale, str):
             s = global_scale
             global_scale = computed_stats[str_names.index(global_scale)]
             logging.info(f"Replace string {s} to {global_scale}")
+        if isinstance(global_scale_coupl, str):
+            s = global_scale_coupl
+            global_scale_coupl = computed_stats[str_names.index(global_scale_coupl)]
+            logging.info(f"Replace string {s} to {global_scale_coupl}")
         if isinstance(global_shift, str):
             s = global_shift
             global_shift = computed_stats[str_names.index(global_shift)]
             logging.info(f"Replace string {s} to {global_shift}")
+        if isinstance(global_shift_coupl, str):
+            s = global_shift_coupl
+            global_shift_coupl = computed_stats[str_names.index(global_shift_coupl)]
+            logging.info(f"Replace string {s} to {global_shift_coupl}")
 
         if global_scale is not None and global_scale < RESCALE_THRESHOLD:
             raise ValueError(
                 f"Global energy scaling was very low: {global_scale}. If dataset values were used, does the dataset contain insufficient variation? Maybe try disabling global scaling with global_scale=None."
+            )
+        if global_scale_coupl is not None and global_scale_coupl < RESCALE_THRESHOLD:
+            raise ValueError(
+                f"Global couple-energy scaling was very low: {global_scale_coupl}. If dataset values were used, does the dataset contain insufficient variation? Maybe try disabling global scaling with global_scale=None."
             )
 
         logging.info(
@@ -107,8 +122,12 @@ def GlobalRescale(
         # Put dummy values
         if global_shift is not None:
             global_shift = 0.0  # it has some kind of value
+        if global_shift_coupl is not None:
+            global_shift_coupl = 0.0  # it has some kind of value
         if global_scale is not None:
             global_scale = 1.0  # same,
+        if global_scale_coupl is not None:
+            global_scale_coupl = 1.0
 
     error_string = "keys need to be a list"
     assert isinstance(default_scale_keys, list), error_string
@@ -121,8 +140,11 @@ def GlobalRescale(
         model=model,
         scale_keys=[k for k in default_scale_keys if k in model.irreps_out],
         scale_by=global_scale,
+        scale_by_coupl=global_scale_coupl,
         shift_keys=[k for k in default_shift_keys if k in model.irreps_out],
+        shift_keys_coupl=[k for k in default_shift_keys_coupl if k in model.irreps_out],
         shift_by=global_shift,
+        shift_by_coupl=global_shift_coupl,
         related_scale_keys=default_related_scale_keys,
         related_shift_keys=default_related_shift_keys,
         shift_trainable=config.get(f"{module_prefix}_shift_trainable", False),
@@ -152,6 +174,7 @@ def PerSpeciesRescale(
         if AtomicDataDict.FORCE_KEY in config.get("train_on_keys", [])
         else f"dataset_per_atom_{AtomicDataDict.TOTAL_ENERGY_KEY}_std",
     )
+
     shifts = config.get(
         module_prefix + "_shifts",
         f"dataset_per_atom_{AtomicDataDict.TOTAL_ENERGY_KEY}_mean",
@@ -229,7 +252,7 @@ def PerSpeciesRescale(
             raise ValueError(
                 f"Per species energy scaling was very low: {scales}. Maybe try setting {module_prefix}_scales = 1."
             )
-
+ 
         logging.info(
             f"Atomic outputs are scaled by: {TypeMapper.format(scales, config.type_names)}, shifted by {TypeMapper.format(shifts, config.type_names)}."
         )

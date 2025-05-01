@@ -56,6 +56,7 @@ class Loss:
                 self.coeffs[key] = 1.0
                 self.funcs[key] = mseloss
         elif isinstance(coeffs, dict):
+            # print(coeffs)
             for key, value in coeffs.items():
                 logging.debug(f" parsing {key} {value}")
                 coeff = 1.0

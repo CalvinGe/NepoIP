@@ -53,11 +53,19 @@ EDGE_EMBEDDING_KEY: Final[str] = "edge_embedding"
 EDGE_FEATURES_KEY: Final[str] = "edge_features"
 
 NODE_FEATURES_KEY: Final[str] = "node_features"
+NODE_FEATURES_COUPL_KEY: Final[str] = "node_features_coupl"
 NODE_ATTRS_KEY: Final[str] = "node_attrs"
 
 PER_ATOM_ENERGY_KEY: Final[str] = "atomic_energy"
+PER_ATOM_CHARGE_KEY: Final[str] = "atomic_charge"
+
 TOTAL_ENERGY_KEY: Final[str] = "total_energy"
+SELF_ENERGY_KEY: Final[str] = "self_energy"
+COUPL_ENERGY_KEY: Final[str] = "coupl_energy"
+
 FORCE_KEY: Final[str] = "forces"
+SELF_FORCE_KEY: Final[str] = "self_forces"
+COUPL_FORCE_KEY: Final[str] = "coupl_forces"
 PARTIAL_FORCE_KEY: Final[str] = "partial_forces"
 STRESS_KEY: Final[str] = "stress"
 VIRIAL_KEY: Final[str] = "virial"
@@ -65,7 +73,11 @@ VIRIAL_KEY: Final[str] = "virial"
 ALL_ENERGY_KEYS: Final[List[str]] = [
     PER_ATOM_ENERGY_KEY,
     TOTAL_ENERGY_KEY,
+    SELF_ENERGY_KEY,
+    COUPL_ENERGY_KEY,
     FORCE_KEY,
+    SELF_FORCE_KEY,
+    COUPL_FORCE_KEY,
     PARTIAL_FORCE_KEY,
     STRESS_KEY,
     VIRIAL_KEY,

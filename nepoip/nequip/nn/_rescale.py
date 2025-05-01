@@ -44,10 +44,13 @@ class RescaleOutput(GraphModuleMixin, torch.nn.Module):
         model: GraphModuleMixin,
         scale_keys: Union[Sequence[str], str] = [],
         shift_keys: Union[Sequence[str], str] = [],
+        shift_keys_coupl: Union[Sequence[str], str] = [],
         related_shift_keys: Union[Sequence[str], str] = [],
         related_scale_keys: Union[Sequence[str], str] = [],
         scale_by=None,
+        scale_by_coupl=None,
         shift_by=None,
+        shift_by_coupl=None,
         shift_trainable: bool = False,
         scale_trainable: bool = False,
         irreps_in: dict = {},
@@ -57,6 +60,7 @@ class RescaleOutput(GraphModuleMixin, torch.nn.Module):
         self.model = model
         scale_keys = [scale_keys] if isinstance(scale_keys, str) else scale_keys
         shift_keys = [shift_keys] if isinstance(shift_keys, str) else shift_keys
+        shift_keys_coupl = [shift_keys_coupl] if isinstance(shift_keys_coupl, str) else shift_keys_coupl
         all_keys = set(scale_keys).union(shift_keys)
 
         # Check irreps:
@@ -81,17 +85,23 @@ class RescaleOutput(GraphModuleMixin, torch.nn.Module):
 
         self.scale_keys = list(scale_keys)
         self.shift_keys = list(shift_keys)
+        self.shift_keys_coupl = list(shift_keys_coupl)
         self.related_scale_keys = list(set(related_scale_keys).union(scale_keys))
         self.related_shift_keys = list(set(related_shift_keys).union(shift_keys))
 
         self.has_scale = scale_by is not None
+        self.has_scale_coupl = scale_by_coupl is not None
+
         self.scale_trainble = scale_trainable
+
         if self.has_scale:
             scale_by = torch.as_tensor(scale_by)
+
             if self.scale_trainble:
                 self.scale_by = torch.nn.Parameter(scale_by)
             else:
                 self.register_buffer("scale_by", scale_by)
+                
         elif self.scale_trainble:
             raise ValueError(
                 "Asked for a scale_trainable, but this RescaleOutput has no scaling (`scale_by = None`)"
@@ -99,6 +109,17 @@ class RescaleOutput(GraphModuleMixin, torch.nn.Module):
         else:
             # register dummy for TorchScript
             self.register_buffer("scale_by", torch.Tensor())
+
+        if self.has_scale_coupl:
+            scale_by_coupl = torch.as_tensor(scale_by_coupl)
+
+            if self.scale_trainble:
+                self.scale_by_coupl = torch.nn.Parameter(scale_by_coupl)
+            else:
+                self.register_buffer("scale_by_coupl", scale_by_coupl)
+        else:
+            # register dummy for TorchScript
+            self.register_buffer("scale_by_coupl", torch.Tensor())
 
         self.has_shift = shift_by is not None
         self.rescale_trainable = shift_trainable
@@ -116,6 +137,14 @@ class RescaleOutput(GraphModuleMixin, torch.nn.Module):
             # register dummy for TorchScript
             self.register_buffer("shift_by", torch.Tensor())
 
+        self.has_shift_coupl = shift_by_coupl is not None
+        if self.has_shift_coupl:
+            shift_by_coupl = torch.as_tensor(shift_by_coupl)
+            self.register_buffer("shift_by_coupl", shift_by_coupl)
+        else:
+            # register dummy for TorchScript
+            self.register_buffer("shift_by_coupl", torch.Tensor())
+            
         # Finally, we tell all the modules in the model that there is rescaling
         # This allows them to update parameters, like physical constants with units,
         # that need to be scaled
@@ -144,10 +173,16 @@ class RescaleOutput(GraphModuleMixin, torch.nn.Module):
             # Scale then shift
             if self.has_scale:
                 for field in self.scale_keys:
-                    data[field] = data[field] * self.scale_by
+                    if field == AtomicDataDict.COUPL_ENERGY_KEY or field == AtomicDataDict.COUPL_FORCE_KEY:
+                        data[field] = data[field] * self.scale_by_coupl
+                    else:
+                        data[field] = data[field] * self.scale_by
             if self.has_shift:
                 for field in self.shift_keys:
                     data[field] = data[field] + self.shift_by
+            if self.has_shift_coupl:
+                for field in self.shift_keys_coupl:
+                    data[field] = data[field] + self.shift_by_coupl
             return data
 
     @torch.jit.export
@@ -172,12 +207,17 @@ class RescaleOutput(GraphModuleMixin, torch.nn.Module):
         else:
             if self.has_scale:
                 for field in self.scale_keys:
-                    if field in data:
+                    if field == AtomicDataDict.COUPL_ENERGY_KEY or field == AtomicDataDict.COUPL_FORCE_KEY:
+                        data[field] = data[field] * self.scale_by_coupl
+                    else:
                         data[field] = data[field] * self.scale_by
             if self.has_shift:
                 for field in self.shift_keys:
-                    if field in data:
-                        data[field] = data[field] + self.shift_by
+                    data[field] = data[field] + self.shift_by
+            if self.has_shift_coupl:
+                for field in self.shift_keys_coupl:
+                    data[field] = data[field] + self.shift_by_coupl
+
             return data
 
     @torch.jit.export
@@ -203,10 +243,18 @@ class RescaleOutput(GraphModuleMixin, torch.nn.Module):
                 for field in self.shift_keys:
                     if field in data:
                         data[field] = data[field] - self.shift_by
+            if self.has_shift_coupl:
+                for field in self.shift_keys_coupl:
+                    if field in data:
+                        data[field] = data[field] - self.shift_by_coupl
+
             if self.has_scale:
                 for field in self.scale_keys:
                     if field in data:
-                        data[field] = data[field] / self.scale_by
+                        if field == AtomicDataDict.COUPL_ENERGY_KEY or field == AtomicDataDict.COUPL_FORCE_KEY:
+                            data[field] = data[field] / self.scale_by_coupl
+                        else:
+                            data[field] = data[field] / self.scale_by
             return data
         else:
             return data

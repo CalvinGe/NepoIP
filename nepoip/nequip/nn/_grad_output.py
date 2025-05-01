@@ -194,6 +194,7 @@ class GradientOutput_pol(GraphModuleMixin, torch.nn.Module):
             [data[self.of].sum()],
             wrt_tensors,
             create_graph=self.training,  # needed to allow gradients of this output during training
+            retain_graph=True,
         )
         # return
         # grad is optional[tensor]?
@@ -208,7 +209,21 @@ class GradientOutput_pol(GraphModuleMixin, torch.nn.Module):
             data[out] = grad
 
         n_atom = data[AtomicDataDict.GRAD_FACTOR_KEY].shape[1]
-        data[AtomicDataDict.FORCE_KEY] = data[AtomicDataDict.FORCE_KEY] - torch.sum(data["Grad_ESP"].view((-1, n_atom, 1)).repeat_interleave(n_atom, dim=0) * data[AtomicDataDict.GRAD_FACTOR_KEY], dim=1)
+        # The data is in shape of [batch_size*n_atom, n_atom, 3], in the first dimension, n_atom continuous numbers belong to the same datapoint
+        # grad_factor = dVj/dri
+        # The first n_atom loops over i, the second loops over j
+        if AtomicDataDict.FORCE_KEY in self.out_field:
+            data[AtomicDataDict.FORCE_KEY] = data[AtomicDataDict.FORCE_KEY] - torch.sum(data["Grad_ESP"].view((-1, n_atom, 1)).repeat_interleave(n_atom, dim=0) * data[AtomicDataDict.GRAD_FACTOR_KEY], dim=1)
+        
+        elif AtomicDataDict.SELF_FORCE_KEY in self.out_field:
+            data[AtomicDataDict.SELF_FORCE_KEY] = data[AtomicDataDict.SELF_FORCE_KEY] - torch.sum(data["Grad_ESP"].view((-1, n_atom, 1)).repeat_interleave(n_atom, dim=0) * data[AtomicDataDict.GRAD_FACTOR_KEY], dim=1)
+        
+        elif AtomicDataDict.COUPL_FORCE_KEY in self.out_field:
+            grad_esp_reshape = data["Grad_ESP_coupl"].view((-1, n_atom, 1)).repeat_interleave(n_atom, dim=0)
+            data[AtomicDataDict.COUPL_FORCE_KEY] = data[AtomicDataDict.COUPL_FORCE_KEY] - torch.sum(grad_esp_reshape * data[AtomicDataDict.GRAD_FACTOR_KEY], dim=1)
+            
+        else:
+            raise RuntimeError("No forces is required")
         
         # print(data[AtomicDataDict.GRAD_FACTOR_KEY].shape)
         for req_grad, k in zip(old_requires_grad, self.wrt):
