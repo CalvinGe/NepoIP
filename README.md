@@ -40,40 +40,7 @@ cd nepoip
 pip install . 
 ```
 
-### 5. Installation Issues
-
-To check if your installation is working:
-
-* First check if the nequip model is working:
-
-  ```
-  $ nequip-train configs/minimal.yaml
-  ```
-
-* Next, check if the nepoip model is working:
-
-  ```
-  $ nequip-train configs/ala_water_pol_dftb_grad.yaml
-  ```
-
-> In the `ala_water_pol_dftb_grad.yaml` configuration file, the specification of `EnergyModel_pol` and `WholeForceOutput` set the use of the nepoip model rather than nequip.
-
-If you suspect something is wrong, encounter errors, or just want to confirm that everything is in working order, you can also run the unit tests:
-
-```
-pip install pytest
-pytest tests/unit/
-```
-
-To run the full tests, including a set of longer/more intensive integration tests, run:
-
-```
-pytest tests/
-```
-
-If a GPU is present, the unit tests will use it.
-
-### Installation of OpenMM-ML
+### 5.Installation of OpenMM-ML
 
 To perform NepoIP/MM MD simulation, one needs to install our modified version of the openmm-ml package ([openmm/openmm-ml: High level API for using machine learning models in OpenMM simulations](https://github.com/openmm/openmm-ml)):
 
@@ -98,7 +65,7 @@ This will run a 2ns NepoIP/MM MD simulation in the NPT ensemble with traj_id=1. 
 
 **! PLEASE NOTE:** the first few calls to a NequIP model can be painfully slow. This is expected behaviour as the [profile-guided optimization of TorchScript models](https://program-transformations.github.io/slides/pytorch_neurips.pdf) takes a number of calls to warm up before optimizing the model. (The `nequip-benchmark` script accounts for this.)
 
-### Basic network training
+### 1. Basic network training
 
 To train a nequip network, you run `nequip-train` with a YAML config file that describes your data set, model hyperparameters, and training options. 
 
@@ -106,11 +73,11 @@ To train a nequip network, you run `nequip-train` with a YAML config file that d
 $ nequip-train configs/example.yaml
 ```
 
-In order to train the nepoip model, rather than nequip, the following model_builder should be specified correctly in the YAML config file:
+In order to train the **NepoIP** model, rather than NequIP, the following model_builder should be specified correctly in the YAML config file:
 
 * model_builders: 
 
-  -EnergyModel_pol
+  \- EnergyModel_pol 
 
   \- WholeForceOutput 
 
@@ -119,6 +86,36 @@ An example YAML is provided to train a nepoip network:
 ```
 $ nequip-train configs/ala_water_pol_dftb_grad.yaml
 ```
+
+
+
+To use the **NepoIP-0** model, the following model_builder should be specified correctly in the YAML config file:
+
+* model_builders: 
+
+  \- EnergyModel_pol_0 
+
+  \- WholeForceOutput 
+
+
+
+To use the **NepoIP-d** model with decomposed energy prediction, the following model_builder should be specified correctly in the YAML config file:
+
+* model_builders: 
+
+  \- EnergyModel_pol_d 
+
+  \- SelfForceOutput 
+
+  \- CouplForceOutput
+
+The key_mapping, loss function, and metrics_components sections should also be specified correctly, an example YAML is provided:
+
+```
+$ nequip-train configs/ala_water_wB97x_decomposed_git.yaml
+```
+
+
 
 Training runs can also be restarted by running the same `nequip-train` command if the `append: True` option is specified in the original YAML. (Otherwise, a new training run with a different name can be started from the loaded state of the previous run.)
 
