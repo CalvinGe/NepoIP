@@ -36,17 +36,17 @@ To install NepoIP:
 
 ```
 git clone https://github.com/Yang-Laboratory/NepoIP.git
-cd nepoip
+cd NepoIP/nepoip
 pip install . 
 ```
 
-### 5.Installation of OpenMM-ML
+### 5.Installation of OpenMM-NepoIP 
 
 To perform NepoIP/MM MD simulation, one needs to install our modified version of the openmm-ml package ([openmm/openmm-ml: High level API for using machine learning models in OpenMM simulations](https://github.com/openmm/openmm-ml)):
 
 ```
 git clone https://github.com/Yang-Laboratory/NepoIP.git
-cd openmm-nepoip
+cd NepoIP/openmm-nepoip
 pip install . 
 ```
 
