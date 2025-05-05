@@ -50,16 +50,7 @@ cd openmm-nepoip
 pip install . 
 ```
 
-### Installation Issues
 
-To check if your installation is working:
-
-```
-cd nepoip_md/
-python example_run.py --traj 1
-```
-
-This will run a 2ns NepoIP/MM MD simulation in the NPT ensemble with traj_id=1. The recorded output file `ala_sol_2ns_md_1.out` and the trajectory file `trajectory_1.dcd` should appear in the `example_run/` directory.
 
 ## Usage
 
@@ -121,7 +112,7 @@ Training runs can also be restarted by running the same `nequip-train` command i
 
 All `nequip-*` commands accept the `--help` option to show their call signatures and options.
 
-### Evaluating trained models (and their error)
+### 2. Evaluating trained models (and their error)
 
 The `nequip-evaluate` command can be used to evaluate a trained model on a specified dataset, optionally computing error metrics or writing the results to an XYZ file for further processing.
 
@@ -133,7 +124,7 @@ which will evaluate the original training error metrics over any part of the ori
 
 For more details on this command, please run `nequip-evaluate --help`.
 
-### Deploying models
+### 3. Deploying models
 
 The `nequip-deploy` command is used to deploy the result of a training session into a model that can be stored and used for inference.
 It compiles a NequIP model trained in Python to [TorchScript](https://pytorch.org/docs/stable/jit.html).
@@ -142,6 +133,33 @@ The result is an optimized model file that has no dependency on the `nequip` Pyt
 nequip-deploy build --train-dir path/to/training/session/ where/to/put/deployed_model.pth
 ```
 For more details on this command, please run `nequip-deploy --help`.
+
+### 4. Running Simulations
+
+We have provided two example scripts for running NepoIP/MM simulation.
+
+```
+cd nepoip_md/example_run/
+```
+
+* In the first example, the simulation will be run with a **NepoIP-d** model in the NPT ensemble, where the external electrostatic potential for the ML region is computed through **Ewald summation**:
+
+```python
+python example_run.py --traj 1
+```
+
+> This will run 500 NepoIP/MM MD simulation steps in the NPT ensemble with traj_id=1. The recorded output file `ala_sol_2ns_md_1.out` and the trajectory file `trajectory_1.dcd` should appear in the `example_run/` directory.
+
+* In the second example, the simulation will be run with a **NepoIP** model in the NPT ensemble, where the external electrostatic potential for the ML region is computed through a specialized **cutoff scheme**:
+
+```
+python example_run_cut.py --traj 1
+```
+
+> This will run 500 NepoIP/MM MD simulation steps in the NPT ensemble with traj_id=1. The recorded output file `ala_sol_2ns_md_1.out` and the trajectory file `trajectory_1.dcd` should appear in the `example_run/` directory.
+
+For details of using the **openmm-nepoip** interface, please see its own `README` at [NepoIP/openmm-nepoip at main · Yang-Laboratory/NepoIP · GitHub](https://github.com/Yang-Laboratory/NepoIP/tree/main/openmm-nepoip).
+
 
 
 ## References
