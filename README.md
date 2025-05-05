@@ -100,7 +100,7 @@ To use the **NepoIP-d** model with decomposed energy prediction, the following m
 
   \- CouplForceOutput
 
-The key_mapping, loss function, metrics_components, and some rescaling sections should also be specified correctly, an example YAML is provided:
+The key_mapping, loss function, metrics_components, and some rescaling sections should also be specified correctly (one can compare the following YAML with ala_water_wB97x_git.yaml), an example YAML is provided:
 
 ```
 $ nequip-train configs/ala_water_wB97x_decomposed_git.yaml
