@@ -9,4 +9,5 @@
 
 conda activate nepoip-test
 
-nequip-train configs/ala_water_pol_dftb_grad.yaml
+# nequip-train configs/ala_water_wB97x_decomposed_git.yaml
+python nequip/scripts/train.py configs/ala_water_wB97x_git.yaml

@@ -1,0 +1,19 @@
+dtype: torch.float32
+extra_fixed_fields:
+  r_max: 4.0
+file_name: ../QMMM_DATASET/ala_wB97x_mini_1440.npz
+force_fixed_keys: !!set {}
+include_frames: null
+include_keys: []
+key_mapping:
+  E: total_energy
+  ESP: elec_potential
+  F: forces
+  GRAD: grad_factor
+  R: pos
+  z: atomic_numbers
+nequip_version: 0.5.6
+npz_fixed_field_keys:
+- atomic_numbers
+root: results
+url: null
