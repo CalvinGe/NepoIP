@@ -4,14 +4,37 @@ OpenMM-NepoIP is an advanced interface for using the NepoIP model in OpenMM simu
 
 ## Usage
 
-To use the NepoIP model, we need to create a MLPotential object:
+To conduct NepoIP/MM simulation, we need to the following:
+
+### 1. Create a MLPotential object:
 
 ```python
 from openmmml import MLPotential
-potential = MLPotential('nepoip',model_path='your/path.pth', distance_to_nm=A_to_nm, energy_to_kJ_per_mol=kcal_to_kJ_per_mol)
+...
+# distance: model is in Angstrom, OpenMM is in nanometers
+A_to_nm = 0.1
+# energy: model is in kcal/mol, OpenMM is in kJ/mol
+kcal_to_kJ_per_mol = 4.184
+...
+potential = MLPotential('nepoip', model_path='../example_model/nepoip_dftb.pth',
+                        distance_to_nm=A_to_nm,
+                        energy_to_kJ_per_mol=kcal_to_kJ_per_mol,
+                        cut_esp = True)
 ```
 
-Since the prediction of NepoIP is the difference between the QM and MM energy and forces, we need to add its prediction on the top of an MM system and specify which atoms should be considered the QM region (ML region).:
+The key arguments for creating a MLPotential:
+
+* name: available options are ['nepoip', 'nepoipd']. Use 'nepoip' for deployed **NepoIP** or **NepoIP-0** model, and use 'nepoipd' for the **NepoIP-d** model.
+
+* model_path: the path for a deployed model
+
+  >  Only models that are deployed successfully from `nequip-deploy` can be used
+
+* cut_esp: whether to use a cutoff scheme for computing the external electrostatic potential on the ML region, otherwise, use the Ewald summation scheme as default. This will only be effective when the potential is added on a periodic OpenMM system.
+
+### 2. Add the Potential on Our System
+
+Since the prediction of NepoIP is the difference between the QM and MM energy, we need to add its prediction on the top of an MM system and specify which atoms should be considered the QM region (ML region).:
 
 ```python
 from openmm.app import *
@@ -28,7 +51,7 @@ ml_system = potential.createEmbedSystem(pdb.topology, mm_system, ml_atoms)
 
 ## Optimizing the speed
 
-The computation of the reciprocal electrostatic potential in a periodic system can be time consuming and is currently parallelized in the `parallel_compute` function of `NepoIP/openmm-nepoip/openmmml/models/utils.py`:
+If the Ewald summation for computing electrostatic potential is used, the computation of the reciprocal components can be time consuming and is currently parallelized in the `parallel_compute` function of `NepoIP/openmm-nepoip/openmmml/models/electrostatic.py`:
 
 ```python
 rec_sum = parallel_compute(kmax, cell, positions - point, charges, alpha, volume, 256)
