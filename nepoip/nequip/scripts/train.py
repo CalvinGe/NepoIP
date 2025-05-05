@@ -10,11 +10,6 @@ import numpy as np  # noqa: F401
 from os.path import isdir
 from pathlib import Path
 
-# Insert the current working directory at the start of sys.path
-import sys
-import os
-sys.path.insert(0, os.getcwd())
-
 import torch
 
 from nequip.model import model_from_config
