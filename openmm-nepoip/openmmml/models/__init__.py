@@ -1,1 +1,1 @@
-from . import anipotential, nequippotential, nepoippotential, utils
+from . import anipotential, nequippotential, nepoippotential, nepoipdpotential, utils, electrostatic
