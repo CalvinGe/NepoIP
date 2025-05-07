@@ -34,7 +34,7 @@ kcal_to_kJ_per_mol = 4.184
 potential = MLPotential('nepoipd', model_path='../example_model/nepoipd_wB97x.pth',
                         distance_to_nm=A_to_nm,
                         energy_to_kJ_per_mol=kcal_to_kJ_per_mol,
-                        cut_esp = True)
+                        cut_esp = False)
 
 path = './'
 # potential = MLPotential('ani2x')
