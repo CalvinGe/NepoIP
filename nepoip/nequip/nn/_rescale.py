@@ -138,13 +138,21 @@ class RescaleOutput(GraphModuleMixin, torch.nn.Module):
             self.register_buffer("shift_by", torch.Tensor())
 
         self.has_shift_coupl = shift_by_coupl is not None
+
         if self.has_shift_coupl:
             shift_by_coupl = torch.as_tensor(shift_by_coupl)
-            self.register_buffer("shift_by_coupl", shift_by_coupl)
+
+            if self.rescale_trainable:
+                self.shift_by_coupl = torch.nn.Parameter(shift_by_coupl)
+            else:
+                self.register_buffer("shift_by_coupl", shift_by_coupl)
+
         else:
             # register dummy for TorchScript
-            self.register_buffer("shift_by_coupl", torch.Tensor())
-            
+            self.register_buffer("shift_by_coupl", torch.Tensor([]))
+            self.shift_keys_coupl = ['NONE'] # Only for letting Torchscript to infer the type of elements
+            print(self.shift_keys_coupl)
+        
         # Finally, we tell all the modules in the model that there is rescaling
         # This allows them to update parameters, like physical constants with units,
         # that need to be scaled
@@ -180,9 +188,11 @@ class RescaleOutput(GraphModuleMixin, torch.nn.Module):
             if self.has_shift:
                 for field in self.shift_keys:
                     data[field] = data[field] + self.shift_by
+            
             if self.has_shift_coupl:
                 for field in self.shift_keys_coupl:
                     data[field] = data[field] + self.shift_by_coupl
+
             return data
 
     @torch.jit.export
