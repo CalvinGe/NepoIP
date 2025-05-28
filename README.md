@@ -165,7 +165,7 @@ For details of using the **openmm-nepoip** interface, please see its own `README
 ## References
 
 The paper of NepoIP/MM: 
-https://arxiv.org/abs/2502.02801
+https://pubs.acs.org/doi/10.1021/acs.jctc.5c00372
 
 Users are encouraged to also cite the NequIP model when using NepoIP/MM:
 https://www.nature.com/articles/s41467-022-29939-5
